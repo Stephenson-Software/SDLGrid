@@ -48,13 +48,15 @@ theGrid.getGridSlot(column, row).setSolidFlag(true);
 
 Slot dimensions are computed as `screenWidth / columns` and `screenHeight / rows` using integer division, which is why the screen dimensions should be exact multiples of the column and row counts — otherwise the grid does not reach the right and bottom edges of the window.
 
+A non-positive column or row count is rejected: `init` reports the rejected values on `std::cerr` and returns without storing anything, leaving the grid at its constructed state of zero columns and zero rows. A subsequent `createGrid` then builds no slots rather than dividing by zero.
+
 ### API
 
 `GridClass`:
 
 | Member | Description |
 | --- | --- |
-| `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions |
+| `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions. A non-positive `c` or `r` is rejected and the grid is left uninitialized |
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid` |
 | `createGrid()` | Constructs and positions `c * r` slots |
 | `drawGrid()` | Renders every slot |
@@ -69,8 +71,8 @@ Slot dimensions are computed as `screenWidth / columns` and `screenHeight / rows
 | `init(int x, int y, int w, int h)` | Sets the slot's position, size and collider |
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer used to draw the slot |
 | `setTexture(SDL_Texture* textureToSet)` | Sets the texture drawn in place of the outline; ownership is not taken |
-| `render()` | Draws the texture if one is set, otherwise draws a rectangle |
-| `drawRectangle(int x, int y, int w, int h)` | Draws a rectangle at the given position and size, filled or outlined according to the slot's fill state |
+| `render()` | Draws the texture if one is set, otherwise draws a rectangle. Does nothing while the slot has no renderer |
+| `drawRectangle(int x, int y, int w, int h)` | Draws a rectangle at the given position and size, filled or outlined according to the slot's fill state. Does nothing while the slot has no renderer |
 | `fillBlack()` / `clear()` | Switch the rectangle between filled and outlined |
 | `setSolidFlag(bool setter)` / `setButtonFlag(bool setter)` | Set the slot's solid and button flags |
 | `collider` | Public `SDL_Rect` matching the slot's position and size, for collision checks |

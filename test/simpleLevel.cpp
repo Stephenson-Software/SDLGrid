@@ -175,26 +175,26 @@ bool checkIfHitSolid(SDL_Rect toCheck) {
 
 void setRow(int row, SDL_Texture* textureToSet) {
 	// set row to be grass
-	for (size_t i = 0; i < COLUMNS; i++) {
+	for (int i = 0; i < COLUMNS; i++) {
 		theGrid.getGridSlot(i, row).setTexture(textureToSet);
 	}
 }
 
 void setSolidRow(int row) {
 	// set row to be solid
-	for (size_t i = 0; i < COLUMNS; i++) {
+	for (int i = 0; i < COLUMNS; i++) {
 		theGrid.getGridSlot(i, row).setSolidFlag(true);
 		theGrid.solidSlots.push_back(theGrid.getGridSlot(i, row));
 	}
 }
 
 void buildLevel() {
-	for (size_t i = 0; i < 15; i++) {
+	for (int i = 0; i < 15; i++) {
 		setRow(i, skyTexture);
 	}
 	setSolidRow(15);
 	setRow(15, grassTexture);
-	for (size_t i = 16; i < 20; i++) {
+	for (int i = 16; i < 20; i++) {
 		setRow(i, dirtTexture);
 	}
 }

@@ -61,7 +61,7 @@ void cleanUp() {
 
 void setRow(int row, SDL_Texture* textureToSet) {
 	// set row to be grass
-	for (size_t i = 0; i < COLUMNS; i++) {
+	for (int i = 0; i < COLUMNS; i++) {
 		theGrid.getGridSlot(i, row).setTexture(grassTexture);
 	}
 }

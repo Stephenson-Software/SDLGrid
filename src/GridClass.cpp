@@ -1,6 +1,7 @@
 #include "GridClass.h"
 
 GridSlot::GridSlot() {
+	renderer = NULL;
 	xpos = 0;
 	ypos = 0;
 	width = 0;
@@ -29,6 +30,9 @@ void GridSlot::setTexture(SDL_Texture* textureToSet) {
 }
 
 void GridSlot::drawRectangle(int x, int y, int w, int h) {
+	if (renderer == NULL) {
+		return;
+	}
 	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
 	SDL_Rect drawRect = {x, y, w, h};
 	if (filled == true) {
@@ -41,6 +45,9 @@ void GridSlot::drawRectangle(int x, int y, int w, int h) {
 }
 
 void GridSlot::render() {
+	if (renderer == NULL) {
+		return;
+	}
 	if (currentTexture != NULL) {
 		SDL_Rect dest = {xpos, ypos, width, height};
 		SDL_RenderCopy(renderer, currentTexture, NULL, &dest);
@@ -77,6 +84,10 @@ GridClass::GridClass() {
 }
 
 void GridClass::init(int c, int r, int sW, int sH) {
+	if (c <= 0 || r <= 0) {
+		std::cerr << "GridClass::init: columns and rows must be positive, received " << c << " columns and " << r << " rows. The grid was left uninitialized." << std::endl;
+		return;
+	}
 	columns = c;
 	rows = r;
 	screenWidth = sW;
@@ -92,8 +103,8 @@ void GridClass::setRenderer(SDL_Renderer* rendererToSet) {
 void GridClass::createGrid() {
 	int xPosition = 0;
 	int yPosition = 0;
-	for (size_t i = 0; i < rows; i++) {
-		for(size_t j = 0; j < columns; j++) {
+	for (int i = 0; i < rows; i++) {
+		for(int j = 0; j < columns; j++) {
 			GridSlot tempGridSlot;
 			tempGridSlot.setRenderer(renderer);
 			tempGridSlot.init(xPosition, yPosition, gridSlotWidth, gridSlotHeight);

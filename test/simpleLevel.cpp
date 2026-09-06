@@ -75,10 +75,13 @@ void loadMedia() {
 	SDL_Surface* tempSurface;
 	tempSurface = IMG_Load("dirtTexture.png");
 	dirtTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+	SDL_FreeSurface(tempSurface);
 	tempSurface = IMG_Load("grassTexture.png");
 	grassTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+	SDL_FreeSurface(tempSurface);
 	tempSurface = IMG_Load("skyTexture.png");
 	skyTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+	SDL_FreeSurface(tempSurface);
 	tempSurface = IMG_Load("userTexture.png");
 	SDL_SetColorKey(tempSurface, SDL_TRUE, SDL_MapRGB(tempSurface->format, 0, 0xFF, 0xFF));
 	userTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
@@ -86,7 +89,10 @@ void loadMedia() {
 }
 
 void cleanUp() {
+	SDL_DestroyTexture(dirtTexture);
 	SDL_DestroyTexture(grassTexture);
+	SDL_DestroyTexture(skyTexture);
+	SDL_DestroyTexture(userTexture);
 	SDL_DestroyRenderer(gRenderer);
 	SDL_DestroyWindow(gWindow);
 	IMG_Quit();

@@ -209,6 +209,7 @@ int main(int argc, char* args[]) {
 	init();
 	loadMedia();
 	theGrid.createGrid();
+	buildLevel();
 	SDL_Event e;
 	bool running = true;
 	while (running) {
@@ -219,8 +220,6 @@ int main(int argc, char* args[]) {
 		}
 		SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(gRenderer);
-
-		buildLevel();
 
 		theGrid.drawGrid();		
 		userControl.render();

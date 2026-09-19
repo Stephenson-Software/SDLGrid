@@ -50,6 +50,8 @@ Slot dimensions are computed as `screenWidth / columns` and `screenHeight / rows
 
 A non-positive column or row count is rejected: `init` reports the rejected values on `std::cerr` and returns without storing anything, leaving the grid at its constructed state of zero columns and zero rows. A subsequent `createGrid` then builds no slots rather than dividing by zero.
 
+`createGrid` may be called again after a further `init` to rebuild the grid at new dimensions. Each call discards the slots built by the previous call, along with any texture or flag set on them, and invalidates any reference previously returned by `getGridSlot`. The public `solidSlots` and `buttonSlots` vectors are not touched, because they hold copies placed there by the consumer.
+
 ### API
 
 `GridClass`:
@@ -58,7 +60,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | --- | --- |
 | `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions. A non-positive `c` or `r` is rejected and the grid is left uninitialized |
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid` |
-| `createGrid()` | Constructs and positions `c * r` slots |
+| `createGrid()` | Discards any existing slots, then constructs and positions `c * r` new ones |
 | `drawGrid()` | Renders every slot |
 | `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y` |
 | `getColumns()` / `getRows()` | Return the configured column and row counts |
@@ -90,6 +92,16 @@ Both load their PNGs by relative path, so both must be run from inside `test/`:
 cd test
 g++ -std=c++11 -I../src ../src/GridClass.cpp testingGridClass.cpp $(sdl2-config --cflags --libs) -lSDL2_image -o testingGridClass
 ./testingGridClass
+```
+
+## Headless check
+
+`test/checkGridClass.cpp` exercises the parts of `GridClass` and `GridSlot` that need no window and no renderer: the column and row counts stored by `init`, the position and size of the slots laid out by `createGrid`, the replacement of those slots by a second `createGrid`, and the signatures of the slot setters and the public tracking vectors. It never calls `SDL_Init`, so it runs on a machine with no display. Each failed expectation is reported on `stderr`, and the process exits non-zero if any failed:
+
+```sh
+cd test
+g++ -std=c++11 -I../src ../src/GridClass.cpp checkGridClass.cpp $(sdl2-config --cflags --libs) -o checkGridClass
+./checkGridClass
 ```
 
 ## License

@@ -101,6 +101,7 @@ void GridClass::setRenderer(SDL_Renderer* rendererToSet) {
 }
 
 void GridClass::createGrid() {
+	theGrid.clear();
 	int xPosition = 0;
 	int yPosition = 0;
 	for (int i = 0; i < rows; i++) {

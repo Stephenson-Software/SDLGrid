@@ -1,0 +1,10 @@
+# Compiler output
+*.exe
+*.o
+*.obj
+*.out
+
+# Binaries produced by the compile lines in README.md
+test/testingGridClass
+test/simpleLevel
+test/checkGridClass

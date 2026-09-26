@@ -21,34 +21,57 @@ SDL_Texture* grassTexture = NULL;
 
 GridClass theGrid;
 
-void init();
+bool init();
 
-void loadMedia();
+bool loadMedia();
 
 void cleanUp();
 
-void init() {
-	SDL_Init(SDL_INIT_VIDEO);
+bool init() {
+	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+		cerr << "SDL_Init failed: " << SDL_GetError() << endl;
+		return false;
+	}
 
 	// set texture filtering to linear
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
 	gWindow = SDL_CreateWindow("blank", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+	if (gWindow == NULL) {
+		cerr << "SDL_CreateWindow failed: " << SDL_GetError() << endl;
+		return false;
+	}
 	gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	if (gRenderer == NULL) {
+		cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << endl;
+		return false;
+	}
 	
 	theGrid.init(COLUMNS, ROWS, SCREEN_WIDTH, SCREEN_HEIGHT);
 	theGrid.setRenderer(gRenderer);
 	
 	// initialize PNG loading
 	int imgFlags = IMG_INIT_PNG;
-	IMG_Init(imgFlags);
+	if (!(IMG_Init(imgFlags) & imgFlags)) {
+		cerr << "IMG_Init failed: " << IMG_GetError() << endl;
+		return false;
+	}
+	return true;
 }
 
-void loadMedia() {
+bool loadMedia() {
 	SDL_Surface* tempSurface;
 	tempSurface = IMG_Load("grassTexture.png");
+	if (tempSurface == NULL) {
+		cerr << "Unable to load grassTexture.png: " << IMG_GetError() << endl;
+		return false;
+	}
 	grassTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+	if (grassTexture == NULL) {
+		cerr << "Unable to create a texture from grassTexture.png: " << SDL_GetError() << endl;
+	}
 	SDL_FreeSurface(tempSurface);
+	return grassTexture != NULL;
 }
 
 void cleanUp() {
@@ -67,8 +90,10 @@ void setRow(int row, SDL_Texture* textureToSet) {
 }
 
 int main(int argc, char* args[]) {
-	init();
-	loadMedia();
+	if (!init() || !loadMedia()) {
+		cleanUp();
+		return 1;
+	}
 	theGrid.createGrid();
 	SDL_Event e;
 	bool running = true;

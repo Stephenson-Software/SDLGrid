@@ -94,6 +94,8 @@ g++ -std=c++11 -I../src ../src/GridClass.cpp testingGridClass.cpp $(sdl2-config 
 ./testingGridClass
 ```
 
+If SDL or SDL_image fails to initialize, the window or renderer cannot be created, or a PNG cannot be loaded (for example because the demo was started from outside `test/`), the demo prints the failing call and the `SDL_GetError()` / `IMG_GetError()` message on `stderr` and exits with status 1.
+
 ## Headless check
 
 `test/checkGridClass.cpp` exercises the parts of `GridClass` and `GridSlot` that need no window and no renderer: the column and row counts stored by `init`, the position and size of the slots laid out by `createGrid`, the replacement of those slots by a second `createGrid`, and the signatures of the slot setters and the public tracking vectors. It never calls `SDL_Init`, so it runs on a machine with no display. Each failed expectation is reported on `stderr`, and the process exits non-zero if any failed:

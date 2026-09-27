@@ -24,9 +24,11 @@ SDL_Texture* userTexture = NULL;
 
 GridClass theGrid;
 
-void init();
+bool init();
 
-void loadMedia();
+SDL_Texture* loadTexture(const char* path, bool useColorKey);
+
+bool loadMedia();
 
 void cleanUp();
 
@@ -52,14 +54,25 @@ class user {
 
 user userControl;
 
-void init() {
-	SDL_Init(SDL_INIT_VIDEO);
+bool init() {
+	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+		cerr << "SDL_Init failed: " << SDL_GetError() << endl;
+		return false;
+	}
 
 	// set texture filtering to linear
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
 	gWindow = SDL_CreateWindow("blank", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+	if (gWindow == NULL) {
+		cerr << "SDL_CreateWindow failed: " << SDL_GetError() << endl;
+		return false;
+	}
 	gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	if (gRenderer == NULL) {
+		cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << endl;
+		return false;
+	}
 	
 	theGrid.init(COLUMNS, ROWS, SCREEN_WIDTH, SCREEN_HEIGHT);
 	theGrid.setRenderer(gRenderer);
@@ -68,24 +81,36 @@ void init() {
 	
 	// initialize PNG loading
 	int imgFlags = IMG_INIT_PNG;
-	IMG_Init(imgFlags);
+	if (!(IMG_Init(imgFlags) & imgFlags)) {
+		cerr << "IMG_Init failed: " << IMG_GetError() << endl;
+		return false;
+	}
+	return true;
 }
 
-void loadMedia() {
-	SDL_Surface* tempSurface;
-	tempSurface = IMG_Load("dirtTexture.png");
-	dirtTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+SDL_Texture* loadTexture(const char* path, bool useColorKey) {
+	SDL_Surface* tempSurface = IMG_Load(path);
+	if (tempSurface == NULL) {
+		cerr << "Unable to load " << path << ": " << IMG_GetError() << endl;
+		return NULL;
+	}
+	if (useColorKey) {
+		SDL_SetColorKey(tempSurface, SDL_TRUE, SDL_MapRGB(tempSurface->format, 0, 0xFF, 0xFF));
+	}
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+	if (texture == NULL) {
+		cerr << "Unable to create a texture from " << path << ": " << SDL_GetError() << endl;
+	}
 	SDL_FreeSurface(tempSurface);
-	tempSurface = IMG_Load("grassTexture.png");
-	grassTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
-	SDL_FreeSurface(tempSurface);
-	tempSurface = IMG_Load("skyTexture.png");
-	skyTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
-	SDL_FreeSurface(tempSurface);
-	tempSurface = IMG_Load("userTexture.png");
-	SDL_SetColorKey(tempSurface, SDL_TRUE, SDL_MapRGB(tempSurface->format, 0, 0xFF, 0xFF));
-	userTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
-	SDL_FreeSurface(tempSurface);
+	return texture;
+}
+
+bool loadMedia() {
+	dirtTexture = loadTexture("dirtTexture.png", false);
+	grassTexture = loadTexture("grassTexture.png", false);
+	skyTexture = loadTexture("skyTexture.png", false);
+	userTexture = loadTexture("userTexture.png", true);
+	return dirtTexture != NULL && grassTexture != NULL && skyTexture != NULL && userTexture != NULL;
 }
 
 void cleanUp() {
@@ -206,8 +231,10 @@ void buildLevel() {
 }
 
 int main(int argc, char* args[]) {
-	init();
-	loadMedia();
+	if (!init() || !loadMedia()) {
+		cleanUp();
+		return 1;
+	}
 	theGrid.createGrid();
 	buildLevel();
 	SDL_Event e;

@@ -10,6 +10,8 @@ using namespace std;
 const int COLUMNS = 20;
 const int ROWS = 20;
 
+const int GROUND_ROW = 15; // rows above are sky, rows below are dirt
+
 const int SCREEN_WIDTH = 500; // must be multiples of COLUMNS
 const int SCREEN_HEIGHT = 500; // must be multiples of ROWS
 
@@ -205,7 +207,7 @@ bool checkIfHitSolid(SDL_Rect toCheck) {
 }
 
 void setRow(int row, SDL_Texture* textureToSet) {
-	// set row to be grass
+	// set every slot in the row to the given texture
 	for (int i = 0; i < COLUMNS; i++) {
 		theGrid.getGridSlot(i, row).setTexture(textureToSet);
 	}
@@ -220,12 +222,12 @@ void setSolidRow(int row) {
 }
 
 void buildLevel() {
-	for (int i = 0; i < 15; i++) {
+	for (int i = 0; i < GROUND_ROW; i++) {
 		setRow(i, skyTexture);
 	}
-	setSolidRow(15);
-	setRow(15, grassTexture);
-	for (int i = 16; i < 20; i++) {
+	setSolidRow(GROUND_ROW);
+	setRow(GROUND_ROW, grassTexture);
+	for (int i = GROUND_ROW + 1; i < ROWS; i++) {
 		setRow(i, dirtTexture);
 	}
 }

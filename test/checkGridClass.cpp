@@ -30,6 +30,8 @@ void checkCreateGridReplacesSlots();
 
 void checkSlotSetters();
 
+void checkInitRejectsNonPositiveCounts();
+
 void expectEqual(const char* description, int expected, int actual) {
 	if (expected != actual) {
 		cerr << "FAIL: " << description << " (expected " << expected << ", got " << actual << ")" << endl;
@@ -92,11 +94,32 @@ void checkSlotSetters() {
 	expectEqual("collider.w of the copied button slot", SLOT_WIDTH * 2, theGrid.buttonSlots[0].collider.w);
 }
 
+void checkInitRejectsNonPositiveCounts() {
+	// each rejected init below prints its own message on stderr; only lines starting
+	// with FAIL: are failed expectations
+	GridClass freshGrid;
+	freshGrid.init(3, -1, SCREEN_WIDTH, SCREEN_HEIGHT);
+	expectEqual("getColumns after a rejected init on a fresh grid", 0, freshGrid.getColumns());
+	expectEqual("getRows after a rejected init on a fresh grid", 0, freshGrid.getRows());
+
+	// a rejected init stores nothing, so a grid that was already initialised keeps the
+	// dimensions and slot sizes of its previous init rather than returning to zero
+	GridClass initialisedGrid;
+	initialisedGrid.init(4, 5, 200, 300);
+	initialisedGrid.init(0, 7, SCREEN_WIDTH, SCREEN_HEIGHT);
+	expectEqual("getColumns after a rejected init on an initialised grid", 4, initialisedGrid.getColumns());
+	expectEqual("getRows after a rejected init on an initialised grid", 5, initialisedGrid.getRows());
+	initialisedGrid.createGrid();
+	expectEqual("collider.w of slot (0, 0) after a rejected init", 50, initialisedGrid.getGridSlot(0, 0).collider.w);
+	expectEqual("collider.h of slot (0, 0) after a rejected init", 60, initialisedGrid.getGridSlot(0, 0).collider.h);
+}
+
 int main(int argc, char* args[]) {
 	checkInit();
 	checkSlotLayout();
 	checkCreateGridReplacesSlots();
 	checkSlotSetters();
+	checkInitRejectsNonPositiveCounts();
 	if (failures > 0) {
 		cerr << failures << " check(s) failed" << endl;
 		return 1;

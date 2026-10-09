@@ -85,7 +85,7 @@ GridClass::GridClass() {
 
 void GridClass::init(int c, int r, int sW, int sH) {
 	if (c <= 0 || r <= 0) {
-		std::cerr << "GridClass::init: columns and rows must be positive, received " << c << " columns and " << r << " rows. The grid was left uninitialized." << std::endl;
+		std::cerr << "GridClass::init: columns and rows must be positive, received " << c << " columns and " << r << " rows. The call was ignored and the grid's existing dimensions were kept." << std::endl;
 		return;
 	}
 	columns = c;

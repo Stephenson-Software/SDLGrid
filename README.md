@@ -62,7 +62,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid` |
 | `createGrid()` | Discards any existing slots, then constructs and positions `c * r` new ones |
 | `drawGrid()` | Renders every slot |
-| `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y` |
+| `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y`. No bounds check is performed: `x` must lie in `0` to `getColumns() - 1`, `y` in `0` to `getRows() - 1`, and `createGrid` must have been called since the last successful `init`, otherwise the behaviour is undefined |
 | `getColumns()` / `getRows()` | Return the configured column and row counts |
 | `solidSlots` / `buttonSlots` | Public vectors a consumer may populate to track slots of interest |
 
@@ -76,7 +76,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | `render()` | Draws the texture if one is set, otherwise draws a rectangle. Does nothing while the slot has no renderer |
 | `drawRectangle(int x, int y, int w, int h)` | Draws a rectangle at the given position and size, filled or outlined according to the slot's fill state. Does nothing while the slot has no renderer |
 | `fillBlack()` / `clear()` | Switch the rectangle between filled and outlined |
-| `setSolidFlag(bool setter)` / `setButtonFlag(bool setter)` | Set the slot's solid and button flags |
+| `setSolidFlag(bool setter)` / `setButtonFlag(bool setter)` | Set the slot's solid and button flags. Neither flag has a getter, and nothing in `GridClass` or `GridSlot` reads them, so setting one changes no behaviour on its own; collision in `simpleLevel.cpp` is checked against the copies placed in `solidSlots` |
 | `collider` | Public `SDL_Rect` matching the slot's position and size, for collision checks |
 
 ## Demo programs
@@ -84,7 +84,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 `test/` contains two standalone SDL programs:
 
 - `testingGridClass.cpp` — draws a 20x20 grid of outlined slots in a 500x500 window
-- `simpleLevel.cpp` — draws a textured level and moves a sprite that collides with slots marked solid
+- `simpleLevel.cpp` — draws a textured level and drops a sprite that comes to rest on the ground row, whose slots are copied into `solidSlots` for collision checks
 
 Both load their PNGs by relative path, so both must be run from inside `test/`:
 

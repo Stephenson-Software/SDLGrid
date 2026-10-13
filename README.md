@@ -62,7 +62,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid` |
 | `createGrid()` | Discards any existing slots, then constructs and positions `c * r` new ones |
 | `drawGrid()` | Renders every slot |
-| `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y`. No bounds check is performed: `x` must lie in `0` to `getColumns() - 1`, `y` in `0` to `getRows() - 1`, and `createGrid` must already have been called, otherwise the behaviour is undefined |
+| `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y`. No bounds check is performed: `x` must lie in `0` to `getColumns() - 1`, `y` in `0` to `getRows() - 1`, and `createGrid` must have been called since the last successful `init`, otherwise the behaviour is undefined |
 | `getColumns()` / `getRows()` | Return the configured column and row counts |
 | `solidSlots` / `buttonSlots` | Public vectors a consumer may populate to track slots of interest |
 

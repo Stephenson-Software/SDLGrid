@@ -59,7 +59,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | Member | Description |
 | --- | --- |
 | `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions. A non-positive `c` or `r` is rejected and nothing is stored, so the grid keeps its previous dimensions |
-| `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid` |
+| `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid`. Slots that already exist keep the renderer they were built with, so a renderer set after `createGrid` reaches them only when `createGrid` is called again or when `GridSlot::setRenderer` is called on each slot |
 | `createGrid()` | Discards any existing slots, then constructs and positions `c * r` new ones |
 | `drawGrid()` | Renders every slot |
 | `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y`. No bounds check is performed: `x` must lie in `0` to `getColumns() - 1`, `y` in `0` to `getRows() - 1`, and `createGrid` must have been called since the last successful `init`, otherwise the behaviour is undefined |
@@ -92,6 +92,8 @@ Both load their PNGs by relative path, so both must be run from inside `test/`:
 cd test
 g++ -std=c++11 -I../src ../src/GridClass.cpp testingGridClass.cpp $(sdl2-config --cflags --libs) -lSDL2_image -o testingGridClass
 ./testingGridClass
+g++ -std=c++11 -I../src ../src/GridClass.cpp simpleLevel.cpp $(sdl2-config --cflags --libs) -lSDL2_image -o simpleLevel
+./simpleLevel
 ```
 
 If SDL or SDL_image fails to initialize, the window or renderer cannot be created, or a PNG cannot be loaded (for example because the demo was started from outside `test/`), the demo prints the failing call and the `SDL_GetError()` / `IMG_GetError()` message on `stderr` and exits with status 1.

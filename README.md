@@ -59,7 +59,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | Member | Description |
 | --- | --- |
 | `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions. A non-positive `c` or `r` is rejected and nothing is stored, so the grid keeps its previous dimensions |
-| `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid`. Slots that already exist keep the renderer they were built with, so a renderer set after `createGrid` takes effect only when `createGrid` is called again |
+| `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid`. Slots that already exist keep the renderer they were built with, so a renderer set after `createGrid` reaches them only when `createGrid` is called again or when `GridSlot::setRenderer` is called on each slot |
 | `createGrid()` | Discards any existing slots, then constructs and positions `c * r` new ones |
 | `drawGrid()` | Renders every slot |
 | `getGridSlot(int x, int y)` | Returns a reference to the slot at column `x`, row `y`. No bounds check is performed: `x` must lie in `0` to `getColumns() - 1`, `y` in `0` to `getRows() - 1`, and `createGrid` must have been called since the last successful `init`, otherwise the behaviour is undefined |

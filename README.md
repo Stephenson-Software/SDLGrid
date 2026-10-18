@@ -46,6 +46,8 @@ theGrid.getGridSlot(column, row).setTexture(grassTexture);
 theGrid.getGridSlot(column, row).setSolidFlag(true);
 ```
 
+Drawing a slot with no texture sets the renderer's draw colour to opaque black with `SDL_SetRenderDrawColor` and does not restore it, so once `drawGrid` has drawn any untextured slot, the renderer is left drawing in black. A consumer that depends on the draw colour — for example before `SDL_RenderClear` — must set it again, as both demos do at the start of each frame.
+
 Slot dimensions are computed as `screenWidth / columns` and `screenHeight / rows` using integer division, which is why the screen dimensions should be exact multiples of the column and row counts — otherwise the grid does not reach the right and bottom edges of the window.
 
 A non-positive column or row count is rejected: `init` reports the rejected values on `std::cerr` and returns without storing anything. On a grid that has not yet been initialized, this leaves it at its constructed state of zero columns and zero rows, and a subsequent `createGrid` then builds no slots rather than dividing by zero. On a grid that has already been initialized, the dimensions and slot sizes from the previous successful `init` are kept, and a subsequent `createGrid` rebuilds the grid at those dimensions.
@@ -74,7 +76,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer used to draw the slot |
 | `setTexture(SDL_Texture* textureToSet)` | Sets the texture drawn in place of the outline; ownership is not taken |
 | `render()` | Draws the texture if one is set, otherwise draws a rectangle. Does nothing while the slot has no renderer |
-| `drawRectangle(int x, int y, int w, int h)` | Draws a rectangle at the given position and size, filled or outlined according to the slot's fill state. Does nothing while the slot has no renderer |
+| `drawRectangle(int x, int y, int w, int h)` | Draws an opaque black rectangle at the given position and size, filled or outlined according to the slot's fill state. Does nothing while the slot has no renderer |
 | `fillBlack()` / `clear()` | Switch the rectangle between filled and outlined |
 | `setSolidFlag(bool setter)` / `setButtonFlag(bool setter)` | Set the slot's solid and button flags. Neither flag has a getter, and nothing in `GridClass` or `GridSlot` reads them, so setting one changes no behaviour on its own; collision in `simpleLevel.cpp` is checked against the copies placed in `solidSlots` |
 | `collider` | Public `SDL_Rect` matching the slot's position and size, for collision checks |
@@ -100,7 +102,7 @@ If SDL or SDL_image fails to initialize, the window or renderer cannot be create
 
 ## Headless check
 
-`test/checkGridClass.cpp` exercises the parts of `GridClass` and `GridSlot` that need no window and no renderer: the column and row counts stored by `init`, the rejection of non-positive counts by `init` on both a fresh and an already-initialized grid, the position and size of the slots laid out by `createGrid`, the replacement of those slots by a second `createGrid`, and the signatures of the slot setters and the public tracking vectors. It never calls `SDL_Init`, so it runs on a machine with no display. Each failed expectation is reported on `stderr`, and the process exits non-zero if any failed:
+`test/checkGridClass.cpp` exercises the parts of `GridClass` and `GridSlot` that need no window and no renderer: the column and row counts stored by `init`, the rejection of non-positive counts by `init` on both a fresh and an already-initialized grid, the position and size of the slots laid out by `createGrid`, the replacement of those slots by a second `createGrid`, and the signatures of `fillBlack`, `clear`, `setSolidFlag`, `setButtonFlag` and the public tracking vectors. `setTexture` and `GridSlot::setRenderer` are not called by it. It never calls `SDL_Init`, so it runs on a machine with no display. Each failed expectation is reported on `stderr`, and the process exits non-zero if any failed:
 
 ```sh
 cd test

@@ -2,6 +2,12 @@
 
 A Grid class whereby you can set the screen width, screen height and the # of rows and columns. Uses SDL.
 
+| `simpleLevel` | `testingGridClass` |
+|---|---|
+| ![simpleLevel demo: a textured sky, grass and dirt level with a sprite resting on the ground row](docs/images/simpleLevel.png) | ![testingGridClass demo: a 20x20 grid of outlined slots](docs/images/testingGridClass.png) |
+
+*The two demo programs in `test/`, built from this repository and run unchanged: a textured level whose ground row is solid, and the default outlined 20x20 grid.*
+
 ## Requirements
 
 - A C++ compiler (the sources are C++11-compatible)
@@ -99,6 +105,11 @@ g++ -std=c++11 -I../src ../src/GridClass.cpp simpleLevel.cpp $(sdl2-config --cfl
 ```
 
 If SDL or SDL_image fails to initialize, the window or renderer cannot be created, or a PNG cannot be loaded (for example because the demo was started from outside `test/`), the demo prints the failing call and the `SDL_GetError()` / `IMG_GetError()` message on `stderr` and exits with status 1.
+
+The screenshots at the top of this README were taken from these two programs
+under a virtual X display. `docs/capture.sh`, run from the repository root,
+compiles both with the commands above and regenerates `docs/images/`; it needs
+`Xvfb`, `xdotool` and ImageMagick in addition to SDL2 and SDL2_image.
 
 ## Headless check
 

@@ -54,7 +54,7 @@ theGrid.getGridSlot(column, row).setSolidFlag(true);
 
 Drawing a slot with no texture sets the renderer's draw colour to opaque black with `SDL_SetRenderDrawColor` and does not restore it, so once `drawGrid` has drawn any untextured slot, the renderer is left drawing in black. A consumer that depends on the draw colour — for example before `SDL_RenderClear` — must set it again, as both demos do at the start of each frame.
 
-Slot dimensions are computed as `screenWidth / columns` and `screenHeight / rows` using integer division, which is why the screen dimensions should be exact multiples of the column and row counts — otherwise the grid does not reach the right and bottom edges of the window.
+Slot dimensions are computed as `screenWidth / columns` and `screenHeight / rows` using integer division, which is why the screen dimensions should be exact multiples of the column and row counts — otherwise the grid does not reach the right and bottom edges of the window. The screen width and height are stored without being checked, so a screen width smaller than the column count, or a screen height smaller than the row count — including zero or any negative value — gives slots a width or height of zero or less.
 
 A non-positive column or row count is rejected: `init` reports the rejected values on `std::cerr` and returns without storing anything. On a grid that has not yet been initialized, this leaves it at its constructed state of zero columns and zero rows, and a subsequent `createGrid` then builds no slots rather than dividing by zero. On a grid that has already been initialized, the dimensions and slot sizes from the previous successful `init` are kept, and a subsequent `createGrid` rebuilds the grid at those dimensions.
 
@@ -66,7 +66,8 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 
 | Member | Description |
 | --- | --- |
-| `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions. A non-positive `c` or `r` is rejected and nothing is stored, so the grid keeps its previous dimensions |
+| `GridClass()` | Constructs a grid with zero columns and rows, zero screen and slot dimensions, no renderer and no slots |
+| `init(int c, int r, int sW, int sH)` | Stores the column count, row count, screen width and screen height, and computes the slot dimensions. A non-positive `c` or `r` is rejected and nothing is stored, so the grid keeps its previous dimensions. `sW` and `sH` are not checked |
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer handed to each slot by `createGrid`. Slots that already exist keep the renderer they were built with, so a renderer set after `createGrid` reaches them only when `createGrid` is called again or when `GridSlot::setRenderer` is called on each slot |
 | `createGrid()` | Discards any existing slots, then constructs and positions `c * r` new ones |
 | `drawGrid()` | Renders every slot |
@@ -78,6 +79,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 
 | Member | Description |
 | --- | --- |
+| `GridSlot()` | Constructs a slot at position `(0, 0)` with zero width and height, no renderer, no texture, an outlined rectangle, and both flags false |
 | `init(int x, int y, int w, int h)` | Sets the slot's position, size and collider |
 | `setRenderer(SDL_Renderer* rendererToSet)` | Sets the renderer used to draw the slot |
 | `setTexture(SDL_Texture* textureToSet)` | Sets the texture drawn in place of the outline; ownership is not taken |

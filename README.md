@@ -85,7 +85,7 @@ A non-positive column or row count is rejected: `init` reports the rejected valu
 | `setTexture(SDL_Texture* textureToSet)` | Sets the texture drawn in place of the outline; ownership is not taken |
 | `render()` | Draws the texture if one is set, otherwise draws a rectangle. Does nothing while the slot has no renderer |
 | `drawRectangle(int x, int y, int w, int h)` | Draws an opaque black rectangle at the given position and size, filled or outlined according to the slot's fill state. Does nothing while the slot has no renderer |
-| `fillBlack()` / `clear()` | Switch the rectangle between filled and outlined. While a texture is set, `render` draws the texture and never the rectangle, so neither call has a visible effect until the texture is cleared with `setTexture(NULL)` |
+| `fillBlack()` / `clear()` | Switch the rectangle between filled and outlined. While a texture is set, `render` draws the texture and never the rectangle, so neither call changes what `render` or `drawGrid` draws until the texture is cleared with `setTexture(NULL)` |
 | `setSolidFlag(bool setter)` / `setButtonFlag(bool setter)` | Set the slot's solid and button flags. Neither flag has a getter, and nothing in `GridClass` or `GridSlot` reads them, so setting one changes no behaviour on its own; collision in `simpleLevel.cpp` is checked against the copies placed in `solidSlots` |
 | `collider` | Public `SDL_Rect` matching the slot's position and size, for collision checks. `render` draws from the slot's private position and size, not from `collider`, so changing `collider` moves the slot for collision only; the next `init` overwrites it |
 

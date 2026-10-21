@@ -115,7 +115,7 @@ compiles both with the commands above and regenerates `docs/images/`; it needs
 
 ## Headless check
 
-`test/checkGridClass.cpp` exercises the parts of `GridClass` and `GridSlot` that need no window and no renderer: the column and row counts stored by `init`, the rejection of non-positive counts by `init` on both a fresh and an already-initialized grid, the position and size of the slots laid out by `createGrid`, the replacement of those slots by a second `createGrid`, and the signatures of `fillBlack`, `clear`, `setSolidFlag`, `setButtonFlag` and the public tracking vectors. `setTexture` and `GridSlot::setRenderer` are not called by it. It never calls `SDL_Init`, so it runs on a machine with no display. Each failed expectation is reported on `stderr`, and the process exits non-zero if any failed:
+`test/checkGridClass.cpp` exercises the parts of `GridClass` and `GridSlot` that need no window and no renderer: the column and row counts stored by `init`, the rejection of non-positive counts by `init` on both a fresh and an already-initialized grid, the position and size of the slots laid out by `createGrid` on both a square grid and a grid with more rows than columns, the replacement of those slots by a second `createGrid`, and the signatures of `fillBlack`, `clear`, `setSolidFlag`, `setButtonFlag` and the public tracking vectors. `setTexture` and `GridSlot::setRenderer` are not called by it. It never calls `SDL_Init`, so it runs on a machine with no display. Each failed expectation is reported on `stderr`, and the process exits non-zero if any failed:
 
 ```sh
 cd test

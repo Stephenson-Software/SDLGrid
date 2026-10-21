@@ -32,6 +32,8 @@ void checkSlotSetters();
 
 void checkInitRejectsNonPositiveCounts();
 
+void checkNonSquareSlotLayout();
+
 void expectEqual(const char* description, int expected, int actual) {
 	if (expected != actual) {
 		cerr << "FAIL: " << description << " (expected " << expected << ", got " << actual << ")" << endl;
@@ -114,12 +116,32 @@ void checkInitRejectsNonPositiveCounts() {
 	expectEqual("collider.h of slot (0, 0) after a rejected init", 60, initialisedGrid.getGridSlot(0, 0).collider.h);
 }
 
+void checkNonSquareSlotLayout() {
+	// every other check uses as many columns as rows, which cannot tell a row stride of
+	// columns from a row stride of rows in getGridSlot; with 4 columns and 5 rows, a stride
+	// of rows would resolve (0, 1) to the slot at (1, 1) and (3, 1) to the slot at (0, 2)
+	GridClass tallGrid;
+	tallGrid.init(4, 5, 200, 300);
+	tallGrid.createGrid();
+	expectEqual("collider.x of slot (3, 0) on a 4x5 grid", 150, tallGrid.getGridSlot(3, 0).collider.x);
+	expectEqual("collider.y of slot (3, 0) on a 4x5 grid", 0, tallGrid.getGridSlot(3, 0).collider.y);
+	expectEqual("collider.x of slot (0, 1) on a 4x5 grid", 0, tallGrid.getGridSlot(0, 1).collider.x);
+	expectEqual("collider.y of slot (0, 1) on a 4x5 grid", 60, tallGrid.getGridSlot(0, 1).collider.y);
+	expectEqual("collider.x of slot (3, 1) on a 4x5 grid", 150, tallGrid.getGridSlot(3, 1).collider.x);
+	expectEqual("collider.y of slot (3, 1) on a 4x5 grid", 60, tallGrid.getGridSlot(3, 1).collider.y);
+	expectEqual("collider.x of the last slot on a 4x5 grid", 150, tallGrid.getGridSlot(3, 4).collider.x);
+	expectEqual("collider.y of the last slot on a 4x5 grid", 240, tallGrid.getGridSlot(3, 4).collider.y);
+	expectEqual("collider.w of the last slot on a 4x5 grid", 50, tallGrid.getGridSlot(3, 4).collider.w);
+	expectEqual("collider.h of the last slot on a 4x5 grid", 60, tallGrid.getGridSlot(3, 4).collider.h);
+}
+
 int main(int argc, char* args[]) {
 	checkInit();
 	checkSlotLayout();
 	checkCreateGridReplacesSlots();
 	checkSlotSetters();
 	checkInitRejectsNonPositiveCounts();
+	checkNonSquareSlotLayout();
 	if (failures > 0) {
 		cerr << failures << " check(s) failed" << endl;
 		return 1;

@@ -34,6 +34,8 @@ void checkInitRejectsNonPositiveCounts();
 
 void checkNonSquareSlotLayout();
 
+void checkNonMultipleScreenSize();
+
 void expectEqual(const char* description, int expected, int actual) {
 	if (expected != actual) {
 		cerr << "FAIL: " << description << " (expected " << expected << ", got " << actual << ")" << endl;
@@ -135,6 +137,21 @@ void checkNonSquareSlotLayout() {
 	expectEqual("collider.h of the last slot on a 4x5 grid", 60, tallGrid.getGridSlot(3, 4).collider.h);
 }
 
+void checkNonMultipleScreenSize() {
+	// 210 is not a multiple of 4 and 313 is not a multiple of 5, so init truncates the slot
+	// size to 52x62 rather than rounding it to 53x63, and the grid stops short of the
+	// right and bottom edges (208 and 310) instead of being stretched to reach 210 and 313
+	GridClass unevenGrid;
+	unevenGrid.init(4, 5, 210, 313);
+	unevenGrid.createGrid();
+	expectEqual("collider.w of slot (0, 0) on a 210x313 screen", 52, unevenGrid.getGridSlot(0, 0).collider.w);
+	expectEqual("collider.h of slot (0, 0) on a 210x313 screen", 62, unevenGrid.getGridSlot(0, 0).collider.h);
+	expectEqual("collider.x of the last slot on a 210x313 screen", 156, unevenGrid.getGridSlot(3, 4).collider.x);
+	expectEqual("collider.y of the last slot on a 210x313 screen", 248, unevenGrid.getGridSlot(3, 4).collider.y);
+	expectEqual("right edge of the last slot on a 210x313 screen", 208, unevenGrid.getGridSlot(3, 4).collider.x + unevenGrid.getGridSlot(3, 4).collider.w);
+	expectEqual("bottom edge of the last slot on a 210x313 screen", 310, unevenGrid.getGridSlot(3, 4).collider.y + unevenGrid.getGridSlot(3, 4).collider.h);
+}
+
 int main(int argc, char* args[]) {
 	checkInit();
 	checkSlotLayout();
@@ -142,6 +159,7 @@ int main(int argc, char* args[]) {
 	checkSlotSetters();
 	checkInitRejectsNonPositiveCounts();
 	checkNonSquareSlotLayout();
+	checkNonMultipleScreenSize();
 	if (failures > 0) {
 		cerr << failures << " check(s) failed" << endl;
 		return 1;

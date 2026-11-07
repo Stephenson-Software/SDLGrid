@@ -16,7 +16,8 @@ const int SCREEN_HEIGHT = 500; // must be multiples of ROWS
 const int SLOT_WIDTH = SCREEN_WIDTH / COLUMNS;
 const int SLOT_HEIGHT = SCREEN_HEIGHT / ROWS;
 
-// the drawing checks use a row of two 10x10 slots, so the first slot's top edge is at (5, 0)
+// the drawing checks share this surface, and unless a check says otherwise they lay it out
+// as a row of two 10x10 slots, so the first slot's top edge is at (5, 0)
 // and its middle at (5, 5), and the second slot's top edge is at (15, 0) and its middle at (15, 5)
 const int DRAWN_COLUMNS = 2;
 const int DRAWN_ROWS = 1;
@@ -48,6 +49,8 @@ void checkNonSquareSlotLayout();
 
 void checkNonMultipleScreenSize();
 
+void clearToWhite(SDL_Renderer* renderer);
+
 void redrawOnWhite(SDL_Renderer* renderer, GridClass& grid);
 
 int redAt(SDL_Renderer* renderer, int x, int y);
@@ -55,6 +58,12 @@ int redAt(SDL_Renderer* renderer, int x, int y);
 void checkSlotDrawing(SDL_Renderer* renderer);
 
 void checkRendererSetAfterCreateGrid(SDL_Renderer* renderer);
+
+void checkDrawRectangleArguments(SDL_Renderer* renderer);
+
+void checkColliderDoesNotMoveDrawing(SDL_Renderer* renderer);
+
+void checkUncoveredScreenEdges(SDL_Renderer* renderer);
 
 void checkDrawing();
 
@@ -175,9 +184,13 @@ void checkNonMultipleScreenSize() {
 	expectEqual("bottom edge of the last slot on a 210x313 screen", 310, unevenGrid.getGridSlot(3, 4).collider.y + unevenGrid.getGridSlot(3, 4).collider.h);
 }
 
-void redrawOnWhite(SDL_Renderer* renderer, GridClass& grid) {
+void clearToWhite(SDL_Renderer* renderer) {
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 	SDL_RenderClear(renderer);
+}
+
+void redrawOnWhite(SDL_Renderer* renderer, GridClass& grid) {
+	clearToWhite(renderer);
 	grid.drawGrid();
 }
 
@@ -241,6 +254,18 @@ void checkSlotDrawing(SDL_Renderer* renderer) {
 	redrawOnWhite(renderer, drawnGrid);
 	expectEqual("middle of a filled slot after its texture is removed", RED_OF_BLACK, redAt(renderer, 5, 5));
 
+	// the first slot is still filled and the second is given the texture, so both are drawn
+	// differently from a new slot until createGrid replaces them
+	drawnGrid.getGridSlot(1, 0).setTexture(texture);
+	redrawOnWhite(renderer, drawnGrid);
+	expectEqual("middle of a filled slot before a second createGrid", RED_OF_BLACK, redAt(renderer, 5, 5));
+	expectEqual("middle of a textured slot before a second createGrid", RED_OF_TEXTURE, redAt(renderer, 15, 5));
+
+	drawnGrid.createGrid();
+	redrawOnWhite(renderer, drawnGrid);
+	expectEqual("middle of a filled slot after a second createGrid", RED_OF_WHITE, redAt(renderer, 5, 5));
+	expectEqual("middle of a textured slot after a second createGrid", RED_OF_WHITE, redAt(renderer, 15, 5));
+
 	SDL_DestroyTexture(texture);
 }
 
@@ -263,6 +288,63 @@ void checkRendererSetAfterCreateGrid(SDL_Renderer* renderer) {
 	expectEqual("top edge of a slot rebuilt after setRenderer", RED_OF_BLACK, redAt(renderer, 15, 0));
 }
 
+void checkDrawRectangleArguments(SDL_Renderer* renderer) {
+	// the slot sits at the left of the surface and the rectangle at the right, spanning x 12 to
+	// 17 and y 2 to 7, so a rectangle drawn from the slot's own position and size would show up
+	// at (5, 0) and (5, 5) and leave the requested area white
+	GridSlot slot;
+	slot.setRenderer(renderer);
+	slot.init(0, 0, 10, 10);
+
+	clearToWhite(renderer);
+	slot.drawRectangle(12, 2, 6, 6);
+	expectEqual("top edge of a rectangle at the given position", RED_OF_BLACK, redAt(renderer, 15, 2));
+	expectEqual("bottom edge of a rectangle of the given size", RED_OF_BLACK, redAt(renderer, 15, 7));
+	expectEqual("middle of an outlined rectangle", RED_OF_WHITE, redAt(renderer, 15, 5));
+	expectEqual("top edge of the slot asked to draw elsewhere", RED_OF_WHITE, redAt(renderer, 5, 0));
+
+	slot.fillBlack();
+	clearToWhite(renderer);
+	slot.drawRectangle(12, 2, 6, 6);
+	expectEqual("middle of a filled rectangle", RED_OF_BLACK, redAt(renderer, 15, 5));
+	expectEqual("middle of the slot asked to fill elsewhere", RED_OF_WHITE, redAt(renderer, 5, 5));
+}
+
+void checkColliderDoesNotMoveDrawing(SDL_Renderer* renderer) {
+	// render draws from the slot's private position, so moving the public collider to the
+	// right of the surface leaves the outline at the left
+	GridSlot slot;
+	slot.setRenderer(renderer);
+	slot.init(0, 0, 10, 10);
+	slot.collider.x = 10;
+	clearToWhite(renderer);
+	slot.render();
+	expectEqual("top edge of a slot whose collider was moved", RED_OF_BLACK, redAt(renderer, 5, 0));
+	expectEqual("top edge at the position the collider was moved to", RED_OF_WHITE, redAt(renderer, 15, 0));
+
+	slot.init(0, 0, 10, 10);
+	expectEqual("collider.x after init overwrites a moved collider", 0, slot.collider.x);
+}
+
+void checkUncoveredScreenEdges(SDL_Renderer* renderer) {
+	// 20 is not a multiple of 3 and 10 is not a multiple of 3, so the 3x3 grid has 6x3 slots
+	// and stops at x 18 and y 9, leaving the last two columns and the last row of pixels
+	// undrawn; rounding the slot size up to 7x4 would reach both edges of the surface
+	GridClass unevenGrid;
+	unevenGrid.init(3, 3, DRAWN_WIDTH, DRAWN_HEIGHT);
+	unevenGrid.setRenderer(renderer);
+	unevenGrid.createGrid();
+	for (int row = 0; row < unevenGrid.getRows(); row++) {
+		for (int column = 0; column < unevenGrid.getColumns(); column++) {
+			unevenGrid.getGridSlot(column, row).fillBlack();
+		}
+	}
+	redrawOnWhite(renderer, unevenGrid);
+	expectEqual("last pixel covered by a filled 3x3 grid", RED_OF_BLACK, redAt(renderer, 17, 8));
+	expectEqual("pixel right of a filled 3x3 grid", RED_OF_WHITE, redAt(renderer, 18, 8));
+	expectEqual("pixel below a filled 3x3 grid", RED_OF_WHITE, redAt(renderer, 17, 9));
+}
+
 void checkDrawing() {
 	// a software renderer drawing to an in-memory surface needs no window and no SDL_Init
 	SDL_Surface* surface = SDL_CreateRGBSurface(0, DRAWN_WIDTH, DRAWN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
@@ -280,6 +362,9 @@ void checkDrawing() {
 	}
 	checkSlotDrawing(renderer);
 	checkRendererSetAfterCreateGrid(renderer);
+	checkDrawRectangleArguments(renderer);
+	checkColliderDoesNotMoveDrawing(renderer);
+	checkUncoveredScreenEdges(renderer);
 	SDL_DestroyRenderer(renderer);
 	SDL_FreeSurface(surface);
 }

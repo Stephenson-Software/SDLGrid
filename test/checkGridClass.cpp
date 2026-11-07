@@ -16,7 +16,8 @@ const int SCREEN_HEIGHT = 500; // must be multiples of ROWS
 const int SLOT_WIDTH = SCREEN_WIDTH / COLUMNS;
 const int SLOT_HEIGHT = SCREEN_HEIGHT / ROWS;
 
-// the drawing checks use a row of two 10x10 slots, so the first slot's top edge is at (5, 0)
+// the drawing checks share this surface, and unless a check says otherwise they lay it out
+// as a row of two 10x10 slots, so the first slot's top edge is at (5, 0)
 // and its middle at (5, 5), and the second slot's top edge is at (15, 0) and its middle at (15, 5)
 const int DRAWN_COLUMNS = 2;
 const int DRAWN_ROWS = 1;

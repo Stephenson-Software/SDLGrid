@@ -65,6 +65,10 @@ void checkColliderDoesNotMoveDrawing(SDL_Renderer* renderer);
 
 void checkUncoveredScreenEdges(SDL_Renderer* renderer);
 
+void checkTextureStretchedToSlot(SDL_Renderer* renderer);
+
+void checkTrackedSlotsAreCopies(SDL_Renderer* renderer);
+
 void checkDrawing();
 
 void expectEqual(const char* description, int expected, int actual) {
@@ -345,6 +349,59 @@ void checkUncoveredScreenEdges(SDL_Renderer* renderer) {
 	expectEqual("pixel below a filled 3x3 grid", RED_OF_WHITE, redAt(renderer, 17, 9));
 }
 
+void checkTextureStretchedToSlot(SDL_Renderer* renderer) {
+	// render copies the whole texture into the slot's rectangle, so a 1x1 texture on the second
+	// slot covers both its top-left pixel (10, 0) and its bottom-right pixel (19, 9); a texture
+	// copied at its own size would cover (10, 0) only, and one spilling left of the slot would
+	// cover the first slot's right edge at (9, 5), which is drawn black by its outline
+	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
+	if (texture == NULL) {
+		cerr << "FAIL: SDL_CreateTexture: " << SDL_GetError() << endl;
+		failures++;
+		return;
+	}
+	Uint32 texturePixel = 0xFF404040;
+	SDL_UpdateTexture(texture, NULL, &texturePixel, sizeof(texturePixel));
+
+	GridClass texturedGrid;
+	texturedGrid.init(DRAWN_COLUMNS, DRAWN_ROWS, DRAWN_WIDTH, DRAWN_HEIGHT);
+	texturedGrid.setRenderer(renderer);
+	texturedGrid.createGrid();
+	texturedGrid.getGridSlot(1, 0).setTexture(texture);
+	redrawOnWhite(renderer, texturedGrid);
+	expectEqual("top-left pixel of a slot with a 1x1 texture", RED_OF_TEXTURE, redAt(renderer, 10, 0));
+	expectEqual("bottom-right pixel of a slot with a 1x1 texture", RED_OF_TEXTURE, redAt(renderer, 19, 9));
+	expectEqual("right edge of the outlined slot beside a textured slot", RED_OF_BLACK, redAt(renderer, 9, 5));
+
+	SDL_DestroyTexture(texture);
+}
+
+void checkTrackedSlotsAreCopies(SDL_Renderer* renderer) {
+	// solidSlots holds a copy of the slot, taken with the renderer, position and fill state the
+	// slot had at the time, so filling the slot in the grid afterwards leaves the copy outlined,
+	// filling the copy leaves the slot in the grid outlined, and drawGrid draws only the grid
+	GridClass trackedGrid;
+	trackedGrid.init(DRAWN_COLUMNS, DRAWN_ROWS, DRAWN_WIDTH, DRAWN_HEIGHT);
+	trackedGrid.setRenderer(renderer);
+	trackedGrid.createGrid();
+	trackedGrid.solidSlots.push_back(trackedGrid.getGridSlot(0, 0));
+
+	trackedGrid.getGridSlot(0, 0).fillBlack();
+	clearToWhite(renderer);
+	trackedGrid.solidSlots[0].render();
+	expectEqual("top edge of a copied slot", RED_OF_BLACK, redAt(renderer, 5, 0));
+	expectEqual("middle of a copied slot after the original is filled", RED_OF_WHITE, redAt(renderer, 5, 5));
+
+	trackedGrid.getGridSlot(0, 0).clear();
+	trackedGrid.solidSlots[0].fillBlack();
+	clearToWhite(renderer);
+	trackedGrid.solidSlots[0].render();
+	expectEqual("middle of a filled copy of a slot", RED_OF_BLACK, redAt(renderer, 5, 5));
+
+	redrawOnWhite(renderer, trackedGrid);
+	expectEqual("middle of a slot whose copy is filled", RED_OF_WHITE, redAt(renderer, 5, 5));
+}
+
 void checkDrawing() {
 	// a software renderer drawing to an in-memory surface needs no window and no SDL_Init
 	SDL_Surface* surface = SDL_CreateRGBSurface(0, DRAWN_WIDTH, DRAWN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
@@ -365,6 +422,8 @@ void checkDrawing() {
 	checkDrawRectangleArguments(renderer);
 	checkColliderDoesNotMoveDrawing(renderer);
 	checkUncoveredScreenEdges(renderer);
+	checkTextureStretchedToSlot(renderer);
+	checkTrackedSlotsAreCopies(renderer);
 	SDL_DestroyRenderer(renderer);
 	SDL_FreeSurface(surface);
 }

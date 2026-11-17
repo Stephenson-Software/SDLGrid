@@ -49,6 +49,8 @@ void checkNonSquareSlotLayout();
 
 void checkNonMultipleScreenSize();
 
+void checkUncheckedScreenSize();
+
 void clearToWhite(SDL_Renderer* renderer);
 
 void redrawOnWhite(SDL_Renderer* renderer, GridClass& grid);
@@ -186,6 +188,22 @@ void checkNonMultipleScreenSize() {
 	expectEqual("collider.y of the last slot on a 210x313 screen", 248, unevenGrid.getGridSlot(3, 4).collider.y);
 	expectEqual("right edge of the last slot on a 210x313 screen", 208, unevenGrid.getGridSlot(3, 4).collider.x + unevenGrid.getGridSlot(3, 4).collider.w);
 	expectEqual("bottom edge of the last slot on a 210x313 screen", 310, unevenGrid.getGridSlot(3, 4).collider.y + unevenGrid.getGridSlot(3, 4).collider.h);
+}
+
+void checkUncheckedScreenSize() {
+	// init checks only the column and row counts, so a screen narrower than the column count
+	// and a negative screen height are both stored; 3 / 4 truncates to a slot width of 0, and
+	// -12 / 5 truncates toward zero to a slot height of -2 rather than rounding down to -3,
+	// so the last of the 5 rows starts at y -8 and every slot starts at x 0
+	GridClass undersizedGrid;
+	undersizedGrid.init(4, 5, 3, -12);
+	expectEqual("getColumns after init on a 3x-12 screen", 4, undersizedGrid.getColumns());
+	expectEqual("getRows after init on a 3x-12 screen", 5, undersizedGrid.getRows());
+	undersizedGrid.createGrid();
+	expectEqual("collider.w of slot (0, 0) on a 3x-12 screen", 0, undersizedGrid.getGridSlot(0, 0).collider.w);
+	expectEqual("collider.h of slot (0, 0) on a 3x-12 screen", -2, undersizedGrid.getGridSlot(0, 0).collider.h);
+	expectEqual("collider.x of the last slot on a 3x-12 screen", 0, undersizedGrid.getGridSlot(3, 4).collider.x);
+	expectEqual("collider.y of the last slot on a 3x-12 screen", -8, undersizedGrid.getGridSlot(3, 4).collider.y);
 }
 
 void clearToWhite(SDL_Renderer* renderer) {
@@ -436,6 +454,7 @@ int main(int argc, char* args[]) {
 	checkInitRejectsNonPositiveCounts();
 	checkNonSquareSlotLayout();
 	checkNonMultipleScreenSize();
+	checkUncheckedScreenSize();
 	checkDrawing();
 	if (failures > 0) {
 		cerr << failures << " check(s) failed" << endl;

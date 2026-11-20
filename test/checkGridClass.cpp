@@ -51,6 +51,10 @@ void checkNonMultipleScreenSize();
 
 void checkUncheckedScreenSize();
 
+void checkConstructedState();
+
+void checkCreateGridKeepsTrackedSlots();
+
 void clearToWhite(SDL_Renderer* renderer);
 
 void redrawOnWhite(SDL_Renderer* renderer, GridClass& grid);
@@ -70,6 +74,8 @@ void checkUncoveredScreenEdges(SDL_Renderer* renderer);
 void checkTextureStretchedToSlot(SDL_Renderer* renderer);
 
 void checkTrackedSlotsAreCopies(SDL_Renderer* renderer);
+
+void checkUnconfiguredGridDrawsNothing(SDL_Renderer* renderer);
 
 void checkDrawing();
 
@@ -204,6 +210,40 @@ void checkUncheckedScreenSize() {
 	expectEqual("collider.h of slot (0, 0) on a 3x-12 screen", -2, undersizedGrid.getGridSlot(0, 0).collider.h);
 	expectEqual("collider.x of the last slot on a 3x-12 screen", 0, undersizedGrid.getGridSlot(3, 4).collider.x);
 	expectEqual("collider.y of the last slot on a 3x-12 screen", -8, undersizedGrid.getGridSlot(3, 4).collider.y);
+}
+
+void checkConstructedState() {
+	// a slot that has never been through init sits at (0, 0) with zero width and height, and a
+	// grid that has never been through init has zero columns and zero rows
+	GridSlot constructedSlot;
+	expectEqual("collider.x of a constructed slot", 0, constructedSlot.collider.x);
+	expectEqual("collider.y of a constructed slot", 0, constructedSlot.collider.y);
+	expectEqual("collider.w of a constructed slot", 0, constructedSlot.collider.w);
+	expectEqual("collider.h of a constructed slot", 0, constructedSlot.collider.h);
+
+	GridClass constructedGrid;
+	expectEqual("getColumns of a constructed grid", 0, constructedGrid.getColumns());
+	expectEqual("getRows of a constructed grid", 0, constructedGrid.getRows());
+}
+
+void checkCreateGridKeepsTrackedSlots() {
+	// the copies are taken from a 4x5 grid of 50x60 slots and the grid is then rebuilt as 2x2
+	// with 100x150 slots, so a copy that createGrid cleared, or replaced with a rebuilt slot,
+	// would change the sizes or the positions read back below
+	GridClass rebuiltGrid;
+	rebuiltGrid.init(4, 5, 200, 300);
+	rebuiltGrid.createGrid();
+	rebuiltGrid.solidSlots.push_back(rebuiltGrid.getGridSlot(1, 0));
+	rebuiltGrid.buttonSlots.push_back(rebuiltGrid.getGridSlot(0, 1));
+	rebuiltGrid.init(2, 2, 200, 300);
+	rebuiltGrid.createGrid();
+	expectEqual("solidSlots size after a second createGrid", 1, (int) rebuiltGrid.solidSlots.size());
+	expectEqual("buttonSlots size after a second createGrid", 1, (int) rebuiltGrid.buttonSlots.size());
+	expectEqual("collider.x of the solid slot copy after a second createGrid", 50, rebuiltGrid.solidSlots[0].collider.x);
+	expectEqual("collider.w of the solid slot copy after a second createGrid", 50, rebuiltGrid.solidSlots[0].collider.w);
+	expectEqual("collider.y of the button slot copy after a second createGrid", 60, rebuiltGrid.buttonSlots[0].collider.y);
+	expectEqual("collider.h of the button slot copy after a second createGrid", 60, rebuiltGrid.buttonSlots[0].collider.h);
+	expectEqual("collider.w of rebuilt slot (1, 0)", 100, rebuiltGrid.getGridSlot(1, 0).collider.w);
 }
 
 void clearToWhite(SDL_Renderer* renderer) {
@@ -420,6 +460,26 @@ void checkTrackedSlotsAreCopies(SDL_Renderer* renderer) {
 	expectEqual("middle of a slot whose copy is filled", RED_OF_WHITE, redAt(renderer, 5, 5));
 }
 
+void checkUnconfiguredGridDrawsNothing(SDL_Renderer* renderer) {
+	// a grid whose only init was rejected still has zero columns and zero rows, so createGrid
+	// builds no slots and drawGrid neither draws a pixel nor changes the white draw colour that
+	// redrawOnWhite left behind; drawing any untextured slot would set it to black
+	GridClass unconfiguredGrid;
+	unconfiguredGrid.init(0, 0, DRAWN_WIDTH, DRAWN_HEIGHT);
+	unconfiguredGrid.setRenderer(renderer);
+	unconfiguredGrid.createGrid();
+	redrawOnWhite(renderer, unconfiguredGrid);
+	expectEqual("top-left pixel under a grid with no slots", RED_OF_WHITE, redAt(renderer, 0, 0));
+	expectEqual("top edge of where a first slot would be", RED_OF_WHITE, redAt(renderer, 5, 0));
+
+	Uint8 red = 0x00;
+	Uint8 green = 0x00;
+	Uint8 blue = 0x00;
+	Uint8 alpha = 0x00;
+	SDL_GetRenderDrawColor(renderer, &red, &green, &blue, &alpha);
+	expectEqual("red of the draw colour after drawing a grid with no slots", RED_OF_WHITE, red);
+}
+
 void checkDrawing() {
 	// a software renderer drawing to an in-memory surface needs no window and no SDL_Init
 	SDL_Surface* surface = SDL_CreateRGBSurface(0, DRAWN_WIDTH, DRAWN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
@@ -442,6 +502,7 @@ void checkDrawing() {
 	checkUncoveredScreenEdges(renderer);
 	checkTextureStretchedToSlot(renderer);
 	checkTrackedSlotsAreCopies(renderer);
+	checkUnconfiguredGridDrawsNothing(renderer);
 	SDL_DestroyRenderer(renderer);
 	SDL_FreeSurface(surface);
 }
@@ -455,6 +516,8 @@ int main(int argc, char* args[]) {
 	checkNonSquareSlotLayout();
 	checkNonMultipleScreenSize();
 	checkUncheckedScreenSize();
+	checkConstructedState();
+	checkCreateGridKeepsTrackedSlots();
 	checkDrawing();
 	if (failures > 0) {
 		cerr << failures << " check(s) failed" << endl;

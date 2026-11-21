@@ -30,6 +30,10 @@ class GridSlot {
 	void clear();
 	void setSolidFlag(bool setter);
 	void setButtonFlag(bool setter);
+	// what render draws, for another view of the slot (src/GridView3D.h)
+	SDL_Texture* getTexture() const;
+	bool isFilled() const;
+	SDL_Rect getRect() const;
 };
 
 class GridClass {
@@ -56,5 +60,8 @@ class GridClass {
 	GridSlot& getGridSlot(int x, int y);
     int getColumns();
     int getRows();
+    int getSlotWidth();
+    int getSlotHeight();
+    int getSlotCount();
 };
 #endif

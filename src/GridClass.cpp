@@ -73,6 +73,19 @@ void GridSlot::setButtonFlag(bool setter) {
 	buttonFlag = setter;
 }
 
+SDL_Texture* GridSlot::getTexture() const {
+	return currentTexture;
+}
+
+bool GridSlot::isFilled() const {
+	return filled;
+}
+
+SDL_Rect GridSlot::getRect() const {
+	SDL_Rect rect = {xpos, ypos, width, height};
+	return rect;
+}
+
 GridClass::GridClass() {
 	renderer = NULL;
 	columns = 0;
@@ -134,4 +147,16 @@ int GridClass::getColumns() {
 
 int GridClass::getRows() {
     return rows;
+}
+
+int GridClass::getSlotWidth() {
+	return gridSlotWidth;
+}
+
+int GridClass::getSlotHeight() {
+	return gridSlotHeight;
+}
+
+int GridClass::getSlotCount() {
+	return int(theGrid.size());
 }

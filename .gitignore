@@ -8,3 +8,8 @@
 test/testingGridClass
 test/simpleLevel
 test/checkGridClass
+test/view3dShots
+
+# Strata, for the optional 3D view (fetched by tools/fetch-strata.sh, never committed)
+libstrata.so*
+strata.dll

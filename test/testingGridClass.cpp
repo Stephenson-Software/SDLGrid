@@ -3,7 +3,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 #include "GridClass.h"
+#include "GridView3DStrata.h"
 
 using namespace std;
 
@@ -17,6 +19,12 @@ SDL_Window* gWindow = NULL;
 
 SDL_Renderer* gRenderer = NULL;
 
+// what the 2D grid is drawn into while the 3D window is shown instead
+SDL_Surface* gOffscreen = NULL;
+
+// how each texture's slots look in 3D
+gridview3d::Looks looks;
+
 SDL_Texture* grassTexture = NULL;
 
 GridClass theGrid;
@@ -27,7 +35,26 @@ bool loadMedia();
 
 void cleanUp();
 
-bool init() {
+// opens the 2D window, or, while the grid is shown in its own 3D window
+// (src/GridView3DStrata.h), only SDL's events and a software renderer that
+// draws the 2D grid into memory: SDL's video subsystem would take over the GL
+// context the 3D window draws with
+bool initWindowAndRenderer() {
+	if (gridview3d::ownsWindow()) {
+		if (SDL_Init(SDL_INIT_EVENTS) < 0) {
+			cerr << "SDL_Init failed: " << SDL_GetError() << endl;
+			return false;
+		}
+		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+		gOffscreen = SDL_CreateRGBSurfaceWithFormat(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
+		gRenderer = gOffscreen == NULL ? NULL : SDL_CreateSoftwareRenderer(gOffscreen);
+		if (gRenderer == NULL) {
+			cerr << "SDL_CreateSoftwareRenderer failed: " << SDL_GetError() << endl;
+			return false;
+		}
+		return true;
+	}
+
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		cerr << "SDL_Init failed: " << SDL_GetError() << endl;
 		return false;
@@ -44,6 +71,13 @@ bool init() {
 	gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (gRenderer == NULL) {
 		cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << endl;
+		return false;
+	}
+	return true;
+}
+
+bool init() {
+	if (!initWindowAndRenderer()) {
 		return false;
 	}
 	
@@ -67,6 +101,7 @@ bool loadMedia() {
 		return false;
 	}
 	grassTexture = SDL_CreateTextureFromSurface(gRenderer, tempSurface);
+	looks.set(grassTexture, gridview3d::lookFromSurface(tempSurface, 0.5f));
 	if (grassTexture == NULL) {
 		cerr << "Unable to create a texture from grassTexture.png: " << SDL_GetError() << endl;
 	}
@@ -77,7 +112,11 @@ bool loadMedia() {
 void cleanUp() {
 	SDL_DestroyTexture(grassTexture);
 	SDL_DestroyRenderer(gRenderer);
-	SDL_DestroyWindow(gWindow);
+	if (gWindow != NULL) {
+		SDL_DestroyWindow(gWindow);
+	}
+	SDL_FreeSurface(gOffscreen);
+	gridview3d::close();
 	IMG_Quit();
 	SDL_Quit();
 }
@@ -89,7 +128,29 @@ void setRow(int row, SDL_Texture* textureToSet) {
 	}
 }
 
+// the next event: from SDL, then from the 3D window, whose input arrives as
+// the events the 2D window would have produced
+int pollEvent(SDL_Event* e) {
+	if (SDL_PollEvent(e) != 0) {
+		return 1;
+	}
+	return gridview3d::pollEvent(e);
+}
+
+// the grid is shown in 3D unless --2d is given or Strata can't run here
+void open3D(int argc, char* args[], const char* title) {
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(args[i], "--2d") == 0) {
+			return;
+		}
+	}
+	if (!gridview3d::open(SCREEN_WIDTH, SCREEN_HEIGHT, title)) {
+		cerr << "Showing the grid in 2D: " << gridview3d::reason() << endl;
+	}
+}
+
 int main(int argc, char* args[]) {
+	open3D(argc, args, "testingGridClass");
 	if (!init() || !loadMedia()) {
 		cleanUp();
 		return 1;
@@ -98,7 +159,7 @@ int main(int argc, char* args[]) {
 	SDL_Event e;
 	bool running = true;
 	while (running) {
-		while (SDL_PollEvent(&e) != 0) {
+		while (pollEvent(&e) != 0) {
 			if (e.type == SDL_QUIT) {
 				running = false;
 			}
@@ -111,6 +172,9 @@ int main(int argc, char* args[]) {
 		theGrid.drawGrid();		
 		
 		SDL_RenderPresent(gRenderer);
+
+		// and in 3D, when it is shown in 3D
+		gridview3d::show(theGrid, looks);
 	}
 	cleanUp();
 }

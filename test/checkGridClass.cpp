@@ -1,9 +1,11 @@
 #include <SDL.h>
 #include <SDL_image.h>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
 #include "GridClass.h"
+#include "GridView3D.h"
 
 using namespace std;
 
@@ -72,6 +74,20 @@ void checkTextureStretchedToSlot(SDL_Renderer* renderer);
 void checkTrackedSlotsAreCopies(SDL_Renderer* renderer);
 
 void checkDrawing();
+
+void expectNear(const char* description, float expected, float actual);
+
+void checkView3DLayout();
+
+void checkView3DLooks(SDL_Renderer* renderer);
+
+void checkView3DShapes(SDL_Renderer* renderer);
+
+void checkView3DMarkers();
+
+void checkView3DPicking();
+
+void checkView3D();
 
 void expectEqual(const char* description, int expected, int actual) {
 	if (expected != actual) {
@@ -446,6 +462,227 @@ void checkDrawing() {
 	SDL_FreeSurface(surface);
 }
 
+// ------------------------------------------------------------------- the 3D view (src/GridView3D.h)
+
+void expectNear(const char* description, float expected, float actual) {
+	if (std::fabs(expected - actual) > 1e-4f) {
+		cerr << "FAIL: " << description << " (expected " << expected << ", got " << actual << ")" << endl;
+		failures++;
+	}
+}
+
+void checkView3DLayout() {
+	// a 20x20 grid of 25 pixel slots is 20 units wide and deep, centred on the origin, with
+	// slot (0, 0) at the back left as it is at the top left in 2D
+	GridClass grid;
+	grid.init(COLUMNS, ROWS, SCREEN_WIDTH, SCREEN_HEIGHT);
+	expectEqual("slot count before createGrid", 0, grid.getSlotCount());
+	grid.createGrid();
+	expectEqual("slot count after createGrid", COLUMNS * ROWS, grid.getSlotCount());
+	expectEqual("getSlotWidth", SLOT_WIDTH, grid.getSlotWidth());
+	expectEqual("getSlotHeight", SLOT_HEIGHT, grid.getSlotHeight());
+	SDL_Rect rect = grid.getGridSlot(3, 2).getRect();
+	expectEqual("getRect x of slot (3, 2)", 3 * SLOT_WIDTH, rect.x);
+	expectEqual("getRect y of slot (3, 2)", 2 * SLOT_HEIGHT, rect.y);
+	expectEqual("getRect w of slot (3, 2)", SLOT_WIDTH, rect.w);
+	expectEqual("a new slot has no texture", 1, grid.getGridSlot(3, 2).getTexture() == NULL ? 1 : 0);
+	expectEqual("a new slot is not filled", 0, grid.getGridSlot(3, 2).isFilled() ? 1 : 0);
+	grid.getGridSlot(3, 2).fillBlack();
+	expectEqual("fillBlack fills the slot", 1, grid.getGridSlot(3, 2).isFilled() ? 1 : 0);
+	gridview3d::Layout l = gridview3d::layoutOf(grid);
+	expectEqual("3D layout columns", COLUMNS, l.columns);
+	expectEqual("3D layout slot width", SLOT_WIDTH, l.slotWidth);
+	float x, z;
+	gridview3d::slotCenter(l, 0, 0, x, z);
+	expectNear("3D x of slot (0, 0)", -9.5f, x);
+	expectNear("3D z of slot (0, 0)", -9.5f, z);
+	gridview3d::slotCenter(l, 19, 19, x, z);
+	expectNear("3D x of slot (19, 19)", 9.5f, x);
+	expectNear("3D z of slot (19, 19)", 9.5f, z);
+
+	// slots twice as wide as they are tall stay twice as wide in 3D
+	GridClass wide;
+	wide.init(4, 2, 200, 50);
+	l = gridview3d::layoutOf(wide);
+	expectNear("3D unit width of a 50x25 slot", 2.0f, gridview3d::unitWidth(l));
+	expectNear("3D width of four 50x25 slots", 8.0f, gridview3d::worldWidth(l));
+	gridview3d::slotCenter(l, 3, 1, x, z);
+	expectNear("3D x of the last wide slot", 3.0f, x);
+	expectNear("3D z of the last wide slot", 0.5f, z);
+
+	// the middle of each slot in 2D is where a 3D click on it lands, inside its collider
+	int cx, cy;
+	gridview3d::clickPoint(gridview3d::layoutOf(grid), 3, 2, cx, cy);
+	expectEqual("2D x of a 3D click on slot (3, 2)", 3 * SLOT_WIDTH + SLOT_WIDTH / 2, cx);
+	expectEqual("2D y of a 3D click on slot (3, 2)", 2 * SLOT_HEIGHT + SLOT_HEIGHT / 2, cy);
+	SDL_Point point = {cx, cy};
+	expectEqual("a 3D click lands inside the slot's collider", 1, SDL_PointInRect(&point, &grid.getGridSlot(3, 2).collider) ? 1 : 0);
+}
+
+void checkView3DLooks(SDL_Renderer* renderer) {
+	// lookFromSurface averages a surface's opaque pixels and skips transparent ones
+	SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, 3, 1, 32, SDL_PIXELFORMAT_RGBA32);
+	Uint8* p = static_cast<Uint8*>(surface->pixels);
+	const Uint8 pixels[12] = {255, 0, 0, 255, 0, 0, 255, 255, 0, 255, 0, 0};
+	for (int i = 0; i < 12; i++) {
+		p[i] = pixels[i];
+	}
+	gridview3d::Look look = gridview3d::lookFromSurface(surface, 0.7f);
+	expectNear("average red of red and blue (green transparent)", 0.5f, look.color[0]);
+	expectNear("average green of red and blue (green transparent)", 0.0f, look.color[1]);
+	expectNear("average blue of red and blue (green transparent)", 0.5f, look.color[2]);
+	expectNear("a surface's Look keeps its height", 0.7f, look.height);
+	SDL_FreeSurface(surface);
+
+	// a texture with no Look gets the palette's colours in order, the same one every time
+	SDL_Texture* a = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
+	SDL_Texture* b = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
+	gridview3d::Looks looks;
+	const gridview3d::Look first = looks.get(a);
+	const gridview3d::Look second = looks.get(b);
+	expectEqual("two textures with no Look look different", 1, first.color[0] != second.color[0] || first.color[1] != second.color[1] || first.color[2] != second.color[2] ? 1 : 0);
+	expectNear("a texture with no Look keeps its colour", first.color[0], looks.get(a).color[0]);
+	looks.set(a, gridview3d::look(0.1f, 0.2f, 0.3f, 0.9f));
+	expectNear("a texture's Look can be set after it was first seen", 0.9f, looks.get(a).height);
+	expectEqual("each texture is listed once", 2, int(looks.size()));
+	SDL_DestroyTexture(a);
+	SDL_DestroyTexture(b);
+}
+
+void checkView3DShapes(SDL_Renderer* renderer) {
+	gridview3d::Looks looks;
+	GridClass grid;
+	grid.init(DRAWN_COLUMNS, DRAWN_ROWS, DRAWN_WIDTH, DRAWN_HEIGHT);
+	grid.setRenderer(renderer);
+	// before createGrid there are no slots: only the bed is drawn
+	expectEqual("3D shapes before createGrid (the bed)", 1, int(gridview3d::gridShapes(grid, looks).size()));
+	expectEqual("3D tile heights before createGrid", 0, int(gridview3d::tileHeights(grid, looks).size()));
+	grid.createGrid();
+
+	// an outlined slot is a white tile on a black edge: two shapes each, after the bed
+	std::vector<gridview3d::Shape> shapes = gridview3d::gridShapes(grid, looks);
+	expectEqual("3D shapes of two outlined slots", 5, int(shapes.size()));
+	expectNear("the outlined slot's top is white", gridview3d::EMPTY_COLOR[0], shapes[2].color[0]);
+	expectNear("the outlined slot's edge is black", gridview3d::OUTLINE_COLOR[0], shapes[1].color[0]);
+
+	// fillBlack raises a black block, and clear lays it flat again
+	grid.getGridSlot(0, 0).fillBlack();
+	shapes = gridview3d::gridShapes(grid, looks);
+	expectEqual("3D shapes of a filled and an outlined slot", 4, int(shapes.size()));
+	expectNear("a filled slot stands FILLED_HEIGHT tall", gridview3d::FILLED_HEIGHT, shapes[1].scale[1]);
+	expectNear("a filled slot is black", gridview3d::OUTLINE_COLOR[0], shapes[1].color[0]);
+	grid.getGridSlot(0, 0).clear();
+	expectEqual("3D shapes after clear", 5, int(gridview3d::gridShapes(grid, looks).size()));
+
+	// a textured slot is one tile in its texture's Look, standing on the bed, whatever its fill
+	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 1, 1);
+	looks.set(texture, gridview3d::look(0.25f, 0.5f, 0.75f, 0.6f));
+	grid.getGridSlot(1, 0).setTexture(texture);
+	grid.getGridSlot(1, 0).fillBlack();
+	shapes = gridview3d::gridShapes(grid, looks);
+	expectEqual("3D shapes of an outlined and a textured slot", 4, int(shapes.size()));
+	const gridview3d::Shape& tile = shapes[3];
+	expectNear("a textured tile's colour is its Look's", 0.5f, tile.color[1]);
+	expectNear("a textured tile's height is its Look's", 0.6f, tile.scale[1]);
+	expectNear("a textured tile stands on the bed", 0.0f, tile.position[1] - tile.scale[1] / 2);
+	float x, z;
+	gridview3d::slotCenter(gridview3d::layoutOf(grid), 1, 0, x, z);
+	expectNear("a textured tile is over its slot", x, tile.position[0]);
+	std::vector<float> heights = gridview3d::tileHeights(grid, looks);
+	expectEqual("one tile height per slot", 2, int(heights.size()));
+	expectNear("the textured slot's tile height", 0.6f, heights[1]);
+	expectNear("the outlined slot's tile height", gridview3d::EMPTY_HEIGHT, heights[0]);
+
+	// a Look flatter than MIN_HEIGHT is drawn MIN_HEIGHT tall, so it never vanishes
+	looks.set(texture, gridview3d::look(0.25f, 0.5f, 0.75f, 0.0f));
+	expectNear("a flat Look is drawn MIN_HEIGHT tall", gridview3d::MIN_HEIGHT, gridview3d::gridShapes(grid, looks)[3].scale[1]);
+
+	// setTexture(NULL) brings back the outline, as it does in 2D
+	grid.getGridSlot(1, 0).setTexture(NULL);
+	grid.getGridSlot(1, 0).clear();
+	expectEqual("3D shapes after the texture is removed", 5, int(gridview3d::gridShapes(grid, looks).size()));
+	SDL_DestroyTexture(texture);
+}
+
+void checkView3DMarkers() {
+	// simpleLevel's 25x50 sprite resting on the ground row (row 15) of its 20x20 grid of
+	// 25 pixel slots covers one slot across and two down: a block one unit wide, two deep
+	GridClass grid;
+	grid.init(COLUMNS, ROWS, SCREEN_WIDTH, SCREEN_HEIGHT);
+	grid.createGrid();
+	gridview3d::Marker sprite = {{250, 325, 25, 50}, {0.0f, 0.0f, 0.0f}, 1.5f};
+	std::vector<gridview3d::Shape> shapes = gridview3d::markerShapes(gridview3d::layoutOf(grid), std::vector<gridview3d::Marker>(1, sprite));
+	expectEqual("one block per marker", 1, int(shapes.size()));
+	expectNear("the marker's x is the middle of its rectangle", 0.5f, shapes[0].position[0]);
+	expectNear("the marker's z is the middle of its rectangle", 4.0f, shapes[0].position[2]);
+	expectNear("the marker is as wide as its rectangle", 1.0f, shapes[0].scale[0]);
+	expectNear("the marker is as deep as its rectangle is tall", 2.0f, shapes[0].scale[2]);
+	expectNear("the marker stands its height tall", 1.5f, shapes[0].scale[1]);
+}
+
+void checkView3DPicking() {
+	// at every view shape (the demos' window, a phone held upright and sideways), a click
+	// on the middle or near a corner of any slot's tile top picks that slot; where tiles of
+	// different heights stand side by side, a click on the middle of any tile top still
+	// does (near a corner, a taller tile in front may hide the point, and is picked instead)
+	const int sizes[3][2] = {{500, 500}, {390, 844}, {844, 390}};
+	GridClass grid;
+	grid.init(6, 4, 300, 200);
+	grid.createGrid();
+	const gridview3d::Layout l = gridview3d::layoutOf(grid);
+	int missed = 0;
+	for (int pass = 0; pass < 6; pass++) {
+		const int s = pass % 3;
+		const bool mixed = pass >= 3;
+		std::vector<float> heights;
+		for (int i = 0; i < 24; i++) {
+			heights.push_back(!mixed ? 0.3f : i % 3 == 0 ? 0.75f : i % 3 == 1 ? 0.04f : 0.3f);
+		}
+		const float w = float(sizes[s][0]), h = float(sizes[s][1]);
+		const gridview3d::Camera camera = gridview3d::fitCamera(l, w / h);
+		for (int r = 0; r < l.rows; r++) {
+			for (int c = 0; c < l.columns; c++) {
+				float x, z;
+				gridview3d::slotCenter(l, c, r, x, z);
+				const float offsets[3][2] = {{0.0f, 0.0f}, {-0.4f, -0.4f}, {0.4f, 0.4f}};
+				for (int o = 0; o < (mixed ? 1 : 3); o++) {
+					float sx, sy;
+					int column = -1, row = -1;
+					const bool seen = gridview3d::projectToScreen(camera, x + offsets[o][0], heights[r * l.columns + c], z + offsets[o][1], w, h, sx, sy);
+					const bool onView = seen && sx > 0 && sx < w && sy > 0 && sy < h;
+					if (!onView || !gridview3d::pickSlot(camera, l, heights, sx, sy, w, h, column, row) || column != c || row != r) {
+						missed++;
+					}
+				}
+			}
+		}
+		// a corner of the view is off the grid
+		int column, row;
+		expectEqual("a click in the view's top-left corner picks no slot", 0, gridview3d::pickSlot(camera, l, heights, 1.0f, 1.0f, w, h, column, row) ? 1 : 0);
+	}
+	expectEqual("clicks on tile tops that picked another slot, or were off the view", 0, missed);
+	int column, row;
+	expectEqual("a click on an empty view picks no slot", 0, gridview3d::pickSlot(gridview3d::fitCamera(l, 1.0f), l, std::vector<float>(24, 0.3f), 5.0f, 5.0f, 0.0f, 0.0f, column, row) ? 1 : 0);
+}
+
+void checkView3D() {
+	SDL_Surface* surface = SDL_CreateRGBSurface(0, DRAWN_WIDTH, DRAWN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+	SDL_Renderer* renderer = surface == NULL ? NULL : SDL_CreateSoftwareRenderer(surface);
+	if (renderer == NULL) {
+		cerr << "FAIL: a software renderer for the 3D view checks: " << SDL_GetError() << endl;
+		failures++;
+		SDL_FreeSurface(surface);
+		return;
+	}
+	checkView3DLayout();
+	checkView3DLooks(renderer);
+	checkView3DShapes(renderer);
+	checkView3DMarkers();
+	checkView3DPicking();
+	SDL_DestroyRenderer(renderer);
+	SDL_FreeSurface(surface);
+}
+
 int main(int argc, char* args[]) {
 	checkInit();
 	checkSlotLayout();
@@ -456,6 +693,7 @@ int main(int argc, char* args[]) {
 	checkNonMultipleScreenSize();
 	checkUncheckedScreenSize();
 	checkDrawing();
+	checkView3D();
 	if (failures > 0) {
 		cerr << failures << " check(s) failed" << endl;
 		return 1;
